@@ -1,20 +1,28 @@
 version: '3.8'
+
 services:
   api:
     build: .
+    container_name: raizes_api
     ports:
       - "3000:3000"
     environment:
+      - PORT=3000
       - DB_HOST=postgres
+      - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASS=admin123
       - DB_NAME=raizes_nordeste_db
-      - JWT_SECRET=chave_secreta_jwt
+      - JWT_SECRET=senha_secreta_jwt_raizes
+      - JWT_EXPIRES_IN=1h
     depends_on:
       - postgres
+    volumes:
+      - ./src:/usr/src/app/src
 
   postgres:
     image: postgres:15-alpine
+    container_name: raizes_db
     restart: always
     environment:
       - POSTGRES_USER=postgres
@@ -22,11 +30,18 @@ services:
       - POSTGRES_DB=raizes_nordeste_db
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/infrastructure/database/migrations/01_schema_inicial.sql:/docker-entrypoint-initdb.d/01_schema_inicial.sql
 
   adminer:
     image: adminer
+    container_name: raizes_adminer
     restart: always
     ports:
       - "8080:8080"
     depends_on:
       - postgres
+
+volumes:
+  pgdata:
