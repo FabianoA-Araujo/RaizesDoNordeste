@@ -2,7 +2,7 @@
   "name": "raizes-nordeste-api",
   "version": "1.0.0",
   "description": "API REST para gestão multicanal da rede de restaurantes Raízes do Nordeste",
-  "main": "src/routes.js",
+  "main": "src/routes.js",  
   "scripts": {
     "start": "node src/routes.js",
     "dev": "nodemon src/routes.js"
