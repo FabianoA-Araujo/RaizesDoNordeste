@@ -1,0 +1,236 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API Raízes do Nordeste",
+    "version": "1.0.0",
+    "description": "API RESTful para gestão multicanal de pedidos, controle de estoque e programa de fidelidade da rede de restaurantes Raízes do Nordeste."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor Local (Docker)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ErroPadrao": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "ESTOQUE_INSUFICIENTE" },
+          "message": { "type": "string", "example": "Não há quantidade suficiente para um ou mais itens." },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": { "type": "string", "example": "produtoId" },
+                "issue": { "type": "string", "example": "Saldo indisponível nesta unidade." }
+              }
+            }
+          },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "path": { "type": "string", "example": "/pedidos" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "senha"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "cliente@raizesdonordeste.com.br" },
+          "senha": { "type": "string", "format": "password", "example": "Senha@123" }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
+          "tokenType": { "type": "string", "example": "Bearer" },
+          "expiresIn": { "type": "integer", "example": 3600 },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "nome": { "type": "string", "example": "João da Silva" },
+              "perfil": { "type": "string", "example": "CLIENTE" }
+            }
+          }
+        }
+      },
+      "CriarPedidoRequest": {
+        "type": "object",
+        "required": ["unidadeId", "canalPedido", "formaPagamento", "itens"],
+        "properties": {
+          "unidadeId": { "type": "string", "format": "uuid", "example": "11111111-1111-1111-1111-111111111111" },
+          "canalPedido": {
+            "type": "string",
+            "enum": ["APP", "TOTEM", "BALCAO", "PICKUP", "WEB"],
+            "example": "APP"
+          },
+          "formaPagamento": {
+            "type": "string",
+            "example": "PIX",
+            "description": "Use CARTAO_REJEITADO para simular falha no gateway mock."
+          },
+          "itens": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["produtoId", "quantidade", "precoUnitario"],
+              "properties": {
+                "produtoId": { "type": "string", "format": "uuid", "example": "22222222-2222-2222-2222-222222222222" },
+                "quantidade": { "type": "integer", "minimum": 1, "example": 2 },
+                "precoUnitario": { "type": "number", "format": "float", "example": 34.90 }
+              }
+            }
+          }
+        }
+      },
+      "PedidoCriadoResponse": {
+        "type": "object",
+        "properties": {
+          "pedidoId": { "type": "string", "format": "uuid" },
+          "canalPedido": { "type": "string", "example": "APP" },
+          "status": { "type": "string", "example": "EM_PREPARO" },
+          "valorTotal": { "type": "number", "example": 69.80 },
+          "pagamento": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "example": "APROVADO" },
+              "motivo": { "type": "string", "example": "Transação autorizada com sucesso." },
+              "transacaoIdMock": { "type": "string", "example": "mock-txn-9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Infraestrutura"],
+        "summary": "Verifica a disponibilidade da API",
+        "responses": {
+          "200": {
+            "description": "Serviço operacional",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "message": { "type": "string", "example": "API Raízes do Nordeste rodando!" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Autentica o usuário e gera um token JWT",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticação bem-sucedida",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Credenciais inválidas ou campos ausentes",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pedidos": {
+      "post": {
+        "tags": ["Pedidos (Fluxo Crítico)"],
+        "summary": "Cria um novo pedido multicanal, valida estoque e processa pagamento",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CriarPedidoRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pedido criado, pago e enviado para preparo",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PedidoCriadoResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Token JWT ausente ou inválido",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+              }
+            }
+          },
+          "402": {
+            "description": "Pagamento recusado pelo gateway mock",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+              }
+            }
+          },
+          "403": {
+            "description": "Perfil sem permissão (RBAC)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+              }
+            }
+          },
+          "409": {
+            "description": "Estoque insuficiente na unidade selecionada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+              }
+            }
+          },
+          "422": {
+            "description": "Canal de pedido inválido",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

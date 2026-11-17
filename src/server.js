@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./api/docs/swagger.json');
 const routes = require('./api/routes/routes');
 const errorHandler = require('./api/middlewares/ErrorHandlerMiddleware');
 
@@ -7,6 +9,9 @@ const app = express();
 
 // Configura o Express para ler corpos de requisição em formato JSON
 app.use(express.json());
+
+// Documentação Swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Monta as rotas registradas
 app.use(routes);
@@ -19,4 +24,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando com sucesso na porta ${PORT}`);
   console.log(`Endpoint de teste: http://localhost:${PORT}/health`);
+  console.log(`📚 Documentação Swagger: http://localhost:${PORT}/api-docs`);
 });
