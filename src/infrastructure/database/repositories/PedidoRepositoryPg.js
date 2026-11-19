@@ -45,7 +45,7 @@ class PedidoRepositoryPg {
         await client.query(insertItemText, itemValues);
       }
 
-      await client.query('COMMIT');
+     await client.query('COMMIT');
       
     } catch (error) {
       await client.query('ROLLBACK'); // Se der erro em qualquer insert, desfaz tudo
@@ -66,6 +66,22 @@ class PedidoRepositoryPg {
     const values = [pedidoEntity.status, pedidoEntity.id];
     
     await db.query(text, values);
+
+    // Alimenta a tabela de pagamentos caso o pedido já possua os dados da transação
+    if (pedidoEntity.pagamento) {
+      const insertPagamentoText = `
+        INSERT INTO pagamentos (pedido_id, metodo_pagamento, status_pagamento, transacao_id_mock, payload_retorno)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (pedido_id) DO NOTHING
+      `;
+      await db.query(insertPagamentoText, [
+        pedidoEntity.id,
+        pedidoEntity.pagamento.metodo || 'PIX',
+        pedidoEntity.pagamento.status,
+        pedidoEntity.pagamento.transacaoIdMock,
+        JSON.stringify(pedidoEntity.pagamento)
+      ]);
+    }
   }
 }
 

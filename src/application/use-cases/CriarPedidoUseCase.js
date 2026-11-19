@@ -46,6 +46,12 @@ class CriarPedidoUseCase {
       dadosRequisicao.formaPagamento
     );
 
+    // Anexa os dados do pagamento ao pedido para persistência no repositório
+    pedido.pagamento = {
+      ...respostaPagamento,
+      metodo: dadosRequisicao.formaPagamento
+    };
+
     if (respostaPagamento.status === 'APROVADO') {
       
       pedido.atualizarStatus('EM_PREPARO'); // Avança o status

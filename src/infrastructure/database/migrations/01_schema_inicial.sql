@@ -1,3 +1,4 @@
+SET client_encoding = 'UTF8';
 -- Unidades
 CREATE TABLE unidades (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
