@@ -9,7 +9,7 @@ function errorHandler(err, req, res, next) {
   if (err instanceof RegraNegocioException) {
     
     // Mapeia o código de erro interno para o status HTTP correspondente
-    let statusCode = 400; // Bad Request como padrão
+    let statusCode = 401; // Bad Request como padrão
     
     if (err.codigo === 'ESTOQUE_INSUFICIENTE') statusCode = 409; // Conflict
     if (err.codigo === 'CANAL_INVALIDO') statusCode = 422; // Unprocessable Entity

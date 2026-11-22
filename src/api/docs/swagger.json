@@ -23,20 +23,20 @@
       "ErroPadrao": {
         "type": "object",
         "properties": {
-          "error": { "type": "string", "example": "ESTOQUE_INSUFICIENTE" },
-          "message": { "type": "string", "example": "Não há quantidade suficiente para um ou mais itens." },
+          "error": { "type": "string" },
+          "message": { "type": "string" },
           "details": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "field": { "type": "string", "example": "produtoId" },
-                "issue": { "type": "string", "example": "Saldo indisponível nesta unidade." }
+                "field": { "type": "string" },
+                "issue": { "type": "string" }
               }
             }
           },
           "timestamp": { "type": "string", "format": "date-time" },
-          "path": { "type": "string", "example": "/pedidos" }
+          "path": { "type": "string" }
         }
       },
       "LoginRequest": {
@@ -56,7 +56,7 @@
           "user": {
             "type": "object",
             "properties": {
-              "id": { "type": "string", "format": "uuid" },
+              "id": { "type": "string", "format": "uuid", "example": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" },
               "nome": { "type": "string", "example": "João da Silva" },
               "perfil": { "type": "string", "example": "CLIENTE" }
             }
@@ -96,7 +96,7 @@
       "PedidoCriadoResponse": {
         "type": "object",
         "properties": {
-          "pedidoId": { "type": "string", "format": "uuid" },
+          "pedidoId": { "type": "string", "format": "uuid", "example": "64195e2b-fd4b-4615-ac18-8aab6ab9da8d" },
           "canalPedido": { "type": "string", "example": "APP" },
           "status": { "type": "string", "example": "EM_PREPARO" },
           "valorTotal": { "type": "number", "example": 69.80 },
@@ -156,11 +156,18 @@
               }
             }
           },
-          "400": {
+          "401": {
             "description": "Credenciais inválidas ou campos ausentes",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" },
+                "example": {
+                  "error": "CREDENCIAIS_INVALIDAS",
+                  "message": "E-mail ou senha incorretos.",
+                  "details": [],
+                  "timestamp": "2026-11-22T02:12:27.478Z",
+                  "path": "/auth/login"
+                }
               }
             }
           }
@@ -193,7 +200,14 @@
             "description": "Token JWT ausente ou inválido",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" },
+                "example": {
+                  "error": "NAO_AUTORIZADO",
+                  "message": "Token de autenticação não fornecido ou inválido.",
+                  "details": [],
+                  "timestamp": "2026-11-22T02:12:27.478Z",
+                  "path": "/pedidos"
+                }
               }
             }
           },
@@ -201,7 +215,19 @@
             "description": "Pagamento recusado pelo gateway mock",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" },
+                "example": {
+                  "error": "PAGAMENTO_RECUSADO",
+                  "message": "A transação foi negada pelo gateway de pagamento.",
+                  "details": [
+                    {
+                      "field": "formaPagamento",
+                      "issue": "Cartão recusado pela operadora."
+                    }
+                  ],
+                  "timestamp": "2026-11-22T02:12:27.478Z",
+                  "path": "/pedidos"
+                }
               }
             }
           },
@@ -209,7 +235,14 @@
             "description": "Perfil sem permissão (RBAC)",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" },
+                "example": {
+                  "error": "ACESSO_NEGADO",
+                  "message": "Seu perfil não tem permissão para acessar este recurso.",
+                  "details": [],
+                  "timestamp": "2026-11-22T02:12:27.478Z",
+                  "path": "/pedidos"
+                }
               }
             }
           },
@@ -217,7 +250,19 @@
             "description": "Estoque insuficiente na unidade selecionada",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" },
+                "example": {
+                  "error": "ESTOQUE_INSUFICIENTE",
+                  "message": "Não há quantidade suficiente para um ou mais itens.",
+                  "details": [
+                    {
+                      "field": "produtoId: 33333333-3333-3333-3333-333333333333",
+                      "issue": "Saldo indisponível nesta unidade."
+                    }
+                  ],
+                  "timestamp": "2026-11-22T02:12:27.478Z",
+                  "path": "/pedidos"
+                }
               }
             }
           },
@@ -225,7 +270,19 @@
             "description": "Canal de pedido inválido",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErroPadrao" }
+                "schema": { "$ref": "#/components/schemas/ErroPadrao" },
+                "example": {
+                  "error": "CANAL_INVALIDO",
+                  "message": "O canal de origem do pedido não foi informado ou é inválido.",
+                  "details": [
+                    {
+                      "field": "canalPedido",
+                      "issue": "Valores permitidos: APP, TOTEM, BALCAO, PICKUP, WEB"
+                    }
+                  ],
+                  "timestamp": "2026-11-22T02:12:27.478Z",
+                  "path": "/pedidos"
+                }
               }
             }
           }

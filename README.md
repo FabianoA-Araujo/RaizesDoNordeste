@@ -1,6 +1,6 @@
 # Raízes do Nordeste — API RESTful de Gestão Multicanal
 
-Projeto desenvolvido como Trabalho da disciplina Desenvolvimento Back-end, do curso superior de tecnologia em **Análise e Desenvolvimento de Sistemas (ADS)** da **UNINTER**.
+Projeto desenvolvido como Trabalho da disciplina **Desenvolvimento Back-end**, do Curso Superior de Tecnologia em **Análise e Desenvolvimento de Sistemas (ADS)** da **UNINTER**.
 
 A aplicação consiste em uma API RESTful projetada para modernizar e centralizar as operações da rede de restaurantes **Raízes do Nordeste**, integrando o fluxo de pedidos multicanal (Aplicativo, Totem de Autoatendimento, Balcão, Pickup e Web), o controle transacional de estoque por unidade, a autenticação segura com controle de acesso baseado em perfis (RBAC) e a conformidade com a Lei Geral de Proteção de Dados (LGPD).
 
@@ -10,21 +10,34 @@ A aplicação consiste em uma API RESTful projetada para modernizar e centraliza
 
 O sistema foi construído seguindo os princípios da **Clean Architecture**, separando as regras de negócio da infraestrutura externa em quatro camadas:
 
-* **Domain (`src/domain`):** Entidades, regras puras e exceções de negócio (`RegraNegocioException`).
+* **Domain (`src/domain`):** Entidades, enumerações (`CanalPedido`, `StatusPedido`), regras puras e exceções de negócio (`RegraNegocioException`).
 * **Application (`src/application`):** Casos de uso da aplicação (`LoginUseCase`, `CriarPedidoUseCase`).
 * **Infrastructure (`src/infrastructure`):** Implementação de acesso ao banco de dados, migrations SQL (`01_schema_inicial.sql`, `02_seed_inicial.sql`), repositórios PostgreSQL e adaptadores externos (`PagamentoMockAdapter`).
 * **API (`src/api`):** Controladores HTTP, definição de rotas, middlewares de autenticação/autorização e documentação Swagger.
 
 ### Stack Tecnológica
-* **Runtime e Framework:** Node.js (v20 Alpine) e Express.js
-* **Banco de Dados:** PostgreSQL 15 (utilizando o driver nativo `pg`)
+* **Linguagem e Runtime:** JavaScript (ES6+) / Node.js v20 (Alpine)
+* **Framework Web:** Express.js (`v4.x`)
+* **Banco de Dados:** PostgreSQL 15 (driver nativo `pg` com *Connection Pooling*)
 * **Segurança:** Autenticação via JSON Web Token (`jsonwebtoken`) e hash de senhas com `bcryptjs`
-* **Infraestrutura e Conteinerização:** Docker e Docker Compose, levantando também a interface do Adminer.
+* **Infraestrutura e Conteinerização:** Docker, Docker Compose e Adminer
 * **Documentação de API:** Swagger / OpenAPI 3.0 (`swagger-ui-express`)
 
 ---
 
-## Estrutura de Diretórios
+## Atendimento aos Requisitos de Negócio e Alta Disponibilidade (Horário de Pico)
+
+O principal desafio operacional identificado no restaurante **Raízes do Nordeste** é a concentração severa de demanda durante o horário de almoço, cenário que exige absorção de picos de requisições simultâneas sem indisponibilidade, lentidão crítica ou inconsistência nos pedidos.
+
+As decisões arquiteturais e tecnológicas deste projeto foram definidas especificamente para mitigar esses riscos:
+
+* **Processamento Assíncrono Não-Bloqueante (Node.js + Express):** Diferente de servidores web tradicionais baseados em *threads* bloqueantes, o *Event Loop* do Node.js gerencia milhares de conexões simultâneas de entrada (App, Totens e Balcão) com baixo consumo de recursos, evitando quedas por saturação durante o pico do almoço.
+* **Autenticação *Stateless* via JWT:** O controle de sessão não depende de armazenamento em memória no servidor. Como o estado do usuário trafega assinado no próprio token JWT, a API pode ser escalada horizontalmente (múltiplas instâncias atrás de um *Load Balancer*) sem perda de sessão.
+* **Pool de Conexões e Transações ACID (PostgreSQL + `pg`):** A utilização de *Connection Pooling* reutiliza conexões ativas com o banco de dados, eliminando a latência de abertura e fechamento de sockets a cada pedido. Além disso, o controle transacional explícito (`BEGIN` / `COMMIT` / `ROLLBACK`) impede condições de corrida (*race conditions*), garantindo que dois clientes não comprem a última unidade de um prato simultaneamente e que o estoque só seja debitado após a confirmação do pagamento.
+* **Isolamento e Resiliência com Docker (`restart: always`):** A conteinerização isola os recursos da API e do banco de dados, garantindo paridade entre ambientes e recuperação automática do serviço em caso de falhas inesperadas.
+* **Desacoplamento via Clean Architecture:** O isolamento da regra de negócio em relação a serviços externos (como o `PagamentoMockAdapter`) permite substituir ou escalar integrações de terceiros sem comprometer o recebimento de pedidos.
+
+---
 
 ## Estrutura de Diretórios
 
@@ -58,22 +71,25 @@ RaizesDoNordeste/
 └── README.md                    # Documentação geral, arquitetura e guia de execução do projeto
 ```
 
+---
+
 ## Pré-requisitos
 
 Para executar este projeto localmente, é necessário ter instalado na máquina:
 * **Git**
-* **Docker** e **Docker Compose**
-* **Postman** (ou outro cliente HTTP de sua preferência, caso deseje importar a coleção de testes)
+* **Docker** e **Docker Compose** (recomendado — provisiona automaticamente o Node.js v20, PostgreSQL 15 e Adminer)
+* **Node.js v20+ e npm** *(opcional, necessário apenas caso opte por executar a API fora do Docker)*
+* **Postman** *(ou outro cliente HTTP de sua preferência, para importar e executar a coleção de testes)*
 
 ---
 
-## Como Clonar e Executar o Ambiente
+## Passo a Passo de Instalação e Execução
 
 ### 1. Clonar o repositório
 Abra o terminal e execute os comandos abaixo para baixar o código-fonte e acessar a pasta do projeto:
 
-```
-git clone https://github.com/FabianoA-Araujo/RaizesDoNordeste
+```bash
+git clone https://github.com/FabianoA-Araujo/RaizesDoNordeste.git
 cd RaizesDoNordeste
 ```
 
@@ -81,7 +97,7 @@ cd RaizesDoNordeste
 Crie uma cópia do arquivo de exemplo `.env.example` renomeando-a para `.env` na raiz do projeto:
 
 **No Linux / macOS:**
-```
+```bash
 cp .env.example .env
 ```
 
@@ -90,34 +106,38 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-O arquivo `.env.example` já contém os valores padrão compatíveis com o `docker-compose.yml` para execução imediata em ambiente de desenvolvimento.
+O arquivo `.env.example` já contém os valores padrão configurados (`PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` e `JWT_SECRET`) compatíveis com o `docker-compose.yml`.
 
-### 3. Subir os contêineres com Docker Compose
-Na raiz do projeto, execute o comando de construção e inicialização dos serviços:
+### 3. Instalar dependências, criar o banco (migrations/seed) e iniciar a API
+Na raiz do projeto, execute o comando de construção e inicialização dos serviços via Docker Compose:
 
-```
+```bash
+# Sobe os contêineres em segundo plano (recomendado)
 docker compose up -d --build
-ou
-docker compose up --build "para travar o terminal e ter acesso imediato aos logs em tempo real"
+
+# Ou execute sem "-d" para acompanhar os logs em tempo real no terminal:
+# docker compose up --build
 ```
 
-Ao executar este comando pela primeira vez, o Docker realizará automaticamente:
-1. O download das imagens e o build da aplicação Node.js (`raizes_api`).
-2. A criação do banco de dados PostgreSQL (`raizes_db`) com codificação UTF-8.
-3. A execução automática dos scripts da pasta `src/infrastructure/database/migrations/`:
+Ao executar este comando pela primeira vez, o ambiente realizará automaticamente:
+1. **Instalação de Dependências:** O `Dockerfile` executa `npm install` com base no `package.json`, instalando `express`, `pg`, `jsonwebtoken`, `bcryptjs`, `dotenv`, `cors`, `uuid` e `swagger-ui-express`.
+2. **Criação do Banco de Dados:** Inicializa o contêiner PostgreSQL 15 (`raizes_db`) com codificação UTF-8 e banco `raizes_nordeste_db`.
+3. **Execução das Migrations e Carga Inicial (Seed):** Roda automaticamente os scripts da pasta `src/infrastructure/database/migrations/`:
    * `01_schema_inicial.sql`: cria as 12 tabelas do Diagrama Entidade-Relacionamento (DER).
    * `02_seed_inicial.sql`: popula o banco com unidades, usuários de teste, consentimento LGPD, produtos e saldos iniciais de estoque.
-4. A inicialização do gerenciador visual de banco de dados **Adminer** (`raizes_adminer`).
+4. **Inicialização da API e Adminer:** Inicia o servidor Express (`raizes_api` na porta `3000`) e o painel visual do banco (`raizes_adminer` na porta `8080`).
+
+*(Nota: Caso deseje instalar as dependências localmente para inspeção no editor, basta executar `npm install` na raiz do projeto).*
 
 ---
 
-## Serviços e Endpoints Disponíveis
+## Serviços, Documentação (Swagger) e Banco de Dados
 
 Após a inicialização dos contêineres, os seguintes serviços estarão disponíveis localmente:
 
 * **Healthcheck da API:** `http://localhost:3000/health`
-* **Documentação Interativa (Swagger UI):** `http://localhost:3000/api-docs`
-* **Painel do Banco de Dados (Adminer):** `http://localhost:8080`
+* **Documentação Interativa (Swagger / OpenAPI 3.0):** `http://localhost:3000/api-docs`
+* **Painel Visual do Banco de Dados (Adminer):** `http://localhost:8080`
 
 ### Credenciais de Acesso ao Adminer
 Caso deseje inspecionar as tabelas e os registros diretamente pelo navegador em `http://localhost:8080`, utilize os dados abaixo:
@@ -133,15 +153,15 @@ Caso deseje inspecionar as tabelas e os registros diretamente pelo navegador em 
 
 O projeto conta com uma coleção completa de testes cobrindo cenários positivos e negativos (autenticação JWT, controle de permissões RBAC, aprovação de pedidos multicanal, bloqueio por estoque insuficiente HTTP 409, recusa de pagamento HTTP 402 e validação de canal HTTP 422).
 
-1. Abra o **Postman** e clique no botão **Import** ou arraste e solte o arquivo "raizes_nordeste_collection.json" no Postman.
-2. Selecione o arquivo localizado em:
+1. Abra o **Postman**, clique em **Import** e selecione (ou arraste) o arquivo:
    ```text
    src/api/docs/raizes_nordeste_collection.json
    ```
-3. A coleção ** API Raízes do Nordeste** será carregada com as variáveis `base_url` (`http://localhost:3000`) e `jwt_token` já configuradas.
-4. Execute as requisições na ordem numérica (`01` a `10`):
-   * Ao executar a requisição **02 - Login Cliente com Sucesso**, um script na aba *Tests* captura o `accessToken` retornado e preenche automaticamente a variável `{{jwt_token}}` para as requisições subsequentes.
-   * Para validar o bloqueio de perfil (RBAC), execute a requisição **03 - Login Gerente com Sucesso** (atualizando o token ativo para o perfil `GERENTE`) e, em seguida, execute a requisição **07 - Erro: Perfil Sem Permissão RBAC**.
+2. A coleção **API Raízes do Nordeste** será carregada com as variáveis `base_url` (`http://localhost:3000`) e `jwt_token` configuradas.
+3. **Ordem recomendada de execução:**
+   * **Infraestrutura e Autenticação Cliente:** Execute `01 - Healthcheck`, `02 - Login Cliente com Sucesso` (um script na aba *Tests* salva automaticamente o `accessToken` do perfil `CLIENTE` na variável `{{jwt_token}}`) e `04 - Login com Senha Incorreta (HTTP 401)`.
+   * **Fluxo Crítico de Pedidos (com token de `CLIENTE` ativo):** Execute em sequência `05 - Criar Pedido Multicanal Aprovado (HTTP 201)`, `06 - Erro: Pedido Sem Token JWT (HTTP 401)`, `08 - Erro: Estoque Insuficiente (HTTP 409)`, `09 - Erro: Pagamento Recusado (HTTP 402)` e `10 - Erro: Canal de Pedido Inválido (HTTP 422)`.
+   * **Validação de Permissão RBAC (com token de `GERENTE`):** Execute `03 - Login Gerente com Sucesso` (sobrescreve `{{jwt_token}}` com o perfil `GERENTE`) e, em seguida, dispare `07 - Erro: Perfil Sem Permissão RBAC (HTTP 403)`.
 
 ### Usuários Disponíveis na Carga Inicial (Seed)
 Todos os usuários cadastrados pelo script `02_seed_inicial.sql` utilizam a senha padrão **`Senha@123`**:

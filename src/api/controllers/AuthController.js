@@ -10,7 +10,7 @@ class AuthController {
 
       // Validação
       if (!email || !senha) {
-        return res.status(400).json({
+        return res.status(401).json({
           error: 'BAD_REQUEST',
           message: 'E-mail e senha são obrigatórios.',
           timestamp: new Date().toISOString(),
