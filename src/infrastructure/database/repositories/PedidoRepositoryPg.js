@@ -82,6 +82,25 @@ class PedidoRepositoryPg {
         JSON.stringify(pedidoEntity.pagamento)
       ]);
     }
+
+    // Registrar logs de auditoria
+    const insertAuditText = `
+      INSERT INTO logs_auditoria (usuario_id, acao_id, entidade, entidade_id, detalhes, ip_origem)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `;
+    await db.query(insertAuditText, [
+      pedidoEntity.usuarioId,
+      'CRIAR_PEDIDO',
+      'pedidos',
+      pedidoEntity.id,
+      JSON.stringify({
+        canalPedido: pedidoEntity.canalPedido,
+        unidadeId: pedidoEntity.unidadeId,
+        statusAtual: pedidoEntity.status,
+        valorFinal: pedidoEntity.valorFinal
+      }),
+      '127.0.0.1'
+    ]);    
   }
 }
 
